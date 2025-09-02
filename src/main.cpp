@@ -9,8 +9,6 @@
 
 #include <Arduino.h>
 #include <atRcRwitch.h>
-#include <FastLED.h>
-#include "BlinkMuster.h"
 #include <EEPROM.h>
 
 #define INTERRUPT_PIN PCINT1 // Interupt ist PB1 gemäß dem Schaltplan
@@ -46,8 +44,7 @@ const unsigned long taste3 = TASTE3_CODE;
 const unsigned long taste4 = TASTE4_CODE;
 
 RCSwitch mySwitch = RCSwitch();
-CRGB leds[NUM_LEDS];
-BlinkMuster blinker = BlinkMuster();
+
 
 static int8_t mode = 0;
 static unsigned long lastTaste3Pressed=0;
@@ -68,9 +65,8 @@ void beep(unsigned char speakerPin, int frequencyInHertz, long timeInMillisecond
 
 void setup()
 {
-  pinMode(TONE_PIN, OUTPUT);
-  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  blinker.setLeds(leds);
+  
+ 
   pinMode(LED_PIN, OUTPUT);
   pinMode(CONTROL_LED, OUTPUT);
   cli();
@@ -99,23 +95,7 @@ ISR(PCINT_VECTOR)
 }
 
 void runBacklightAnimation(){
-    switch (mode)
-    {
-    case 1:
-      blinker.drawComet();
-      break;
-    case 2:
-      blinker.drawHollywood();
-      break;
-    case 3:
-      blinker.drawFullRed(150);
-      break;   
-    case 4:
-      blinker.drawFullRed(200);
-      break;
-    default:      
-      blinker.drawKitt();                  
-    }
+   
 }
 
 void loop()
@@ -129,14 +109,14 @@ void loop()
   switch (currentCodeMain)
   {
   case (int)taste1:
-    blinker.setBlinkLeft();
+    
     break;
   case (int)taste2:
-    blinker.setBlinkRight();
+    
     break; 
   case (int)taste3: // nächsten Blinkmode auswählen       
     if((millis()-lastTaste3Pressed) > 250 ){   
-      tone(TONE_PIN, 200, 50);
+      
       if(++mode>MAX_MODES) mode=0;
       EEPROM.write(0,mode);
       runBacklightAnimation();                                
