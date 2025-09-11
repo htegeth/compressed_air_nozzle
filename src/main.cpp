@@ -12,11 +12,10 @@
 #include <EEPROM.h>
 
 #define INTERRUPT_PIN PCINT1 // Interupt ist PB1 gemäß dem Schaltplan
-#define INT_PIN PB1          // Interrupt-Pin nach Wahl: PB1 (wie PCINT1)
-#define LED_PIN PB3          // LED für das Feedback für enfnagene Nachrichten
-#define CONTROL_LED PB2      // LED um anzuzeigen welcher Knopf der Fernbedienung gedrückt wurde
+#define VENTIL_PIN PB3       //Anschluss Relais um das Ventil zu steuern
+#define CONTROL_LED PB0      // LED um anzuzeigen ob das ventil geöffnet werden sollte
 #define PCINT_VECTOR PCINT0_vect // This step is not necessary - it's a naming thing for clarit
-#define NUM_LEDS 23
+
 #define DATA_PIN 4
 
 // Anzhal der zulässigen maxmialmodes
@@ -24,8 +23,7 @@
 
 boolean lightsOn = false;
 
-// Seltsam, wenn currentCode long ist, liefert  Control.hasCodeChanged() zu oft true. Bei typ int ist das kein Problem
-unsigned int currentCodeMain = 0;
+unsigned long currentCodeMain = 0;
 
 // Fernbedienungscodes. Ausgelesen über RCSwitch.getReceivedValue()
 //    _________ 
@@ -38,54 +36,31 @@ unsigned int currentCodeMain = 0;
 //    _________   
 
 //Diese Werte werden durch die Build Paramter von platfomio.ini gesetzt.
-const unsigned long taste1 = TASTE1_CODE;
-const unsigned long taste2 = TASTE2_CODE;
-const unsigned long taste3 = TASTE3_CODE;
-const unsigned long taste4 = TASTE4_CODE;
+const unsigned int druckluftDauerConf = DRUCKLUFTDAUER;
+const unsigned long ventilCode = VENTIL_CODE;
+
 
 RCSwitch mySwitch = RCSwitch();
 
+static unsigned int druckluftDauer;
 
-static int8_t mode = 0;
-static unsigned long lastTaste3Pressed=0;
-
-void beep(unsigned char speakerPin, int frequencyInHertz, long timeInMilliseconds)
-{
-  int x;
-  long delayAmount = (long)(1000000 / frequencyInHertz);
-  long loopTime = (long)((timeInMilliseconds * 1000) / (delayAmount * 2));
-  for (x = 0; x < loopTime; x++)
-  {
-    digitalWrite(speakerPin, HIGH);
-    delayMicroseconds(delayAmount);
-    digitalWrite(speakerPin, LOW);
-    delayMicroseconds(delayAmount);
-  }
-}
 
 void setup()
-{
-  
- 
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(CONTROL_LED, OUTPUT);
+{  
+  pinMode(PB0, OUTPUT);
+  pinMode(VENTIL_PIN, OUTPUT);
+
   cli();
   PCMSK |= (1 << INTERRUPT_PIN);
   GIMSK |= (1 << PCIE);
-  pinMode(INT_PIN, INPUT_PULLUP);
+  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
   mySwitch.enableReceive(0);
   sei();
-  mode=EEPROM.read(0);
-}
 
-void blinkControll(int times, int unsigned frequence)
-{
-  for (int i = 0; i < times; i++)
-  {
-    digitalWrite(CONTROL_LED, HIGH);
-    delay(frequence);
-    digitalWrite(CONTROL_LED, LOW);
-    delay(frequence);
+  EEPROM.get(0, druckluftDauer);
+  if (druckluftDauer == 0xFFFF || druckluftDauer < 10 || druckluftDauer > 2000) {  // EEPROM leer (alle Bits 1) oder auf einem unsinnigen wert
+    druckluftDauer = druckluftDauerConf;
+    EEPROM.put(0, druckluftDauerConf);  // schreibt 2 Bytes ab Adresse 0
   }
 }
 
@@ -94,38 +69,47 @@ ISR(PCINT_VECTOR)
   mySwitch.handleInterrupt();
 }
 
-void runBacklightAnimation(){
-   
+void ventilOffen()
+{
+  digitalWrite(VENTIL_PIN, HIGH); 
+  delay(druckluftDauer);                   
+  digitalWrite(VENTIL_PIN, LOW);     
+}
+
+void feedbackLed()
+{
+  for(int i=0;  i<5; i++){
+    digitalWrite(CONTROL_LED, HIGH); 
+    delay(50);                   
+    digitalWrite(CONTROL_LED, LOW); 
+    delay(50);                   
+  }
 }
 
 void loop()
 {
+  
   if (mySwitch.available())
   {    
-    currentCodeMain = (int)mySwitch.getReceivedValue();       
+    currentCodeMain = mySwitch.getReceivedValue();           
     mySwitch.resetAvailable();
   }
+  int codePrefix = currentCodeMain / 10000;
+  int codeSuffix = currentCodeMain % 10000;
 
-  switch (currentCodeMain)
+
+  if (currentCodeMain == ventilCode) //ventil öffnen
+  { 
+     ventilOffen();
+  }else if (codePrefix == 99 ) //zeit zum Ventilöffnen neu festlegen
   {
-  case (int)taste1:
-    
-    break;
-  case (int)taste2:
-    
-    break; 
-  case (int)taste3: // nächsten Blinkmode auswählen       
-    if((millis()-lastTaste3Pressed) > 250 ){   
-      
-      if(++mode>MAX_MODES) mode=0;
-      EEPROM.write(0,mode);
-      runBacklightAnimation();                                
+    feedbackLed();    
+    if (codeSuffix>50 && codeSuffix < 4000)
+    {
+      druckluftDauer=codeSuffix; 
+      EEPROM.put(0, druckluftDauer);
     }
-    lastTaste3Pressed=millis();  
-    currentCodeMain=0;    
-    break;
-  default:
-    runBacklightAnimation();
-    break;
   }
+   currentCodeMain=0;   
+
 }

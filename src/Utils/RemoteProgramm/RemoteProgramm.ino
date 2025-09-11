@@ -23,7 +23,7 @@ void setup() {
 
 void loop() {
   mySwitch.setProtocol(1);
-  mySwitch.send(10, 8);
+  mySwitch.send(454531, 24);
   delay(100);
 
 }
