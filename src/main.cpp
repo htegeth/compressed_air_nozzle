@@ -1,53 +1,30 @@
-// ATTiny 85 PINS
-//
-//                  +-\/-+
-// Ain0 (D 5) PB5  1|    |8  Vcc
-// Ain3 (D 3) PB3  2|    |7  PB2 (D 2) Ain1
-// Ain2 (D 4) PB4  3|    |6  PB1 (D 1) pwm1
-//            GND  4|    |5  PB0 (D 0) pwm0
-//
-
 #include <Arduino.h>
 #include <atRcRwitch.h>
 #include <EEPROM.h>
 
-#define INTERRUPT_PIN PCINT1 // Interupt ist PB1 gemäß dem Schaltplan
-#define VENTIL_PIN PB3       //Anschluss Relais um das Ventil zu steuern
-#define CONTROL_LED PB0      // LED um anzuzeigen ob das ventil geöffnet werden sollte
-#define PCINT_VECTOR PCINT0_vect // This step is not necessary - it's a naming thing for clarit
+// ATTiny 85 PINS
+#define INTERRUPT_PIN   PCINT1     // Interrupt = PB1
+#define VENTIL_PIN      PB3        // Relaisausgang
+#define CONTROL_LED     PB0        // Status LED
+#define PCINT_VECTOR    PCINT0_vect
 
-#define DATA_PIN 4
+// Befehlspräfixe
+#define PREFIX_FLEX     77
+#define PREFIX_CONFIG   99
 
-// Anzhal der zulässigen maxmialmodes
-#define MAX_MODES 4
-
-boolean lightsOn = false;
-
-unsigned long currentCodeMain = 0;
-
-// Fernbedienungscodes. Ausgelesen über RCSwitch.getReceivedValue()
-//    _________ 
-//  |     =     |
-//  | (1)   (2) |
-//  |           | 
-//  | (3)   (4) |
-//  |           |
-//  |           |
-//    _________   
-
-//Diese Werte werden durch die Build Paramter von platfomio.ini gesetzt.
+// Konfiguration (über platformio.ini gesetzt)
 const unsigned int druckluftDauerConf = DRUCKLUFTDAUER;
 const unsigned long ventilCode = VENTIL_CODE;
-
+const unsigned int druckluftDauerMin = DRUCKLUFTDAUER_MIN;
+const unsigned int druckluftDauerMax = DRUCKLUFTDAUER_MAX;
 
 RCSwitch mySwitch = RCSwitch();
 
 static unsigned int druckluftDauer;
+unsigned long currentCodeMain = 0;
 
-
-void setup()
-{  
-  pinMode(PB0, OUTPUT);
+void setup() {
+  pinMode(CONTROL_LED, OUTPUT);
   pinMode(VENTIL_PIN, OUTPUT);
 
   cli();
@@ -58,58 +35,58 @@ void setup()
   sei();
 
   EEPROM.get(0, druckluftDauer);
-  if (druckluftDauer == 0xFFFF || druckluftDauer < 10 || druckluftDauer > 2000) {  // EEPROM leer (alle Bits 1) oder auf einem unsinnigen wert
+  if (druckluftDauer == 0xFFFF || druckluftDauer < druckluftDauerMin || druckluftDauer > druckluftDauerMax) {
     druckluftDauer = druckluftDauerConf;
-    EEPROM.put(0, druckluftDauerConf);  // schreibt 2 Bytes ab Adresse 0
+    EEPROM.put(0, druckluftDauerConf);
   }
 }
 
-ISR(PCINT_VECTOR)
-{
+ISR(PCINT_VECTOR) {
+  // Muss so, da die Library Interrupt-Bearbeitung intern erfordert
   mySwitch.handleInterrupt();
 }
 
-void ventilOffen()
-{
-  digitalWrite(VENTIL_PIN, HIGH); 
-  delay(druckluftDauer);                   
-  digitalWrite(VENTIL_PIN, LOW);     
-}
-
-void feedbackLed()
-{
-  for(int i=0;  i<5; i++){
-    digitalWrite(CONTROL_LED, HIGH); 
-    delay(50);                   
-    digitalWrite(CONTROL_LED, LOW); 
-    delay(50);                   
+void ventilOffen(unsigned int dauer) {
+  if (dauer >= druckluftDauerMin && dauer <= druckluftDauerMax) {
+    digitalWrite(VENTIL_PIN, HIGH); // ggf. LOW, falls Relais invertiert ist
+    delay(dauer);
+    digitalWrite(VENTIL_PIN, LOW);
   }
 }
 
-void loop()
-{
-  
-  if (mySwitch.available())
-  {    
-    currentCodeMain = mySwitch.getReceivedValue();           
+void feedbackLed() {
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(CONTROL_LED, HIGH);
+    delay(50);
+    digitalWrite(CONTROL_LED, LOW);
+    delay(50);
+  }
+}
+
+void loop() {
+  if (mySwitch.available()) {
+    currentCodeMain = mySwitch.getReceivedValue();
     mySwitch.resetAvailable();
   }
-  int codePrefix = currentCodeMain / 10000;
-  int codeSuffix = currentCodeMain % 10000;
 
+  unsigned long codePrefix = currentCodeMain / 10000;
+  unsigned long codeSuffix = currentCodeMain % 10000;
 
-  if (currentCodeMain == ventilCode) //ventil öffnen
-  { 
-     ventilOffen();
-  }else if (codePrefix == 99 ) //zeit zum Ventilöffnen neu festlegen
-  {
-    feedbackLed();    
-    if (codeSuffix>50 && codeSuffix < 4000)
-    {
-      druckluftDauer=codeSuffix; 
-      EEPROM.put(0, druckluftDauer);
+  if (currentCodeMain == ventilCode) {
+    ventilOffen(druckluftDauer);
+  } 
+  else if (codePrefix == PREFIX_FLEX) {
+    ventilOffen(codeSuffix);
+  } 
+  else if (codePrefix == PREFIX_CONFIG) {
+    feedbackLed();
+    if (codeSuffix >= druckluftDauerMin && codeSuffix <= druckluftDauerMax) {
+      if (codeSuffix != druckluftDauer) {
+        druckluftDauer = codeSuffix;
+        EEPROM.put(0, druckluftDauer);
+      }
     }
   }
-   currentCodeMain=0;   
 
+  currentCodeMain = 0; // Reset nach jedem Befehl
 }
