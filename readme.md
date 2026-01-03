@@ -1,15 +1,38 @@
 #Ventilsteuerung
 
+
+## Teileliste
+
+| Produkt |Anzahl| Größe | Beschreibung | Kosten | Quelle |
+|---------|----|---|--------------|--------|--------|
+|Gewindeschraube|2|M4 x 6mm| Zwei Gewindeschrauben um das Magnetventil an die Box festzuschrauben| 0,19€| [Bauhaus](https://www.bauhaus.info/gewindeschrauben/marinetech-gewindeschraube/p/23679276)
+|Gewindeschraube|2|M2 x 4mm|Gewindeschrauben um das Relais an die Box zu schrauben
+|Magnetventil| 
+|Relais|
+
+
+
+
+## Aufbau
 Im Halloweenprojekt ist es vorgesehen, dass ein Drucklufteffekt eingebaut wird. Dazu wird an einem KOmpressor ein druckluftschlauch angeschlossen an dessen Ende ein Magnetventil befestigt ist. Im passenden Augenblick wird das Ventil geöffnet und ein Luftstoß erschrickt die ZUschauer.
 
 Das Ventil ist ein günstiges 12V Magnetventil  von Amazon: [Heschen Magnetventil ](https://www.amazon.de/dp/B072ZZK9SD). Das Ventil ist vom Typ "normalerweise geschlossen" und öffnet sich wenn 12V Gleichspannung anliegt. Gesteuert werden soll das Ventil über einen Arduino bzw hier einen ATtiny85. Da dieser aber mit 12V betrieben wird, ist ein zusätzliches Gleichspannungsrelais erforderlich [Relais](https://www.amazon.de/dp/B07CNR7K9B). Das Relais wird im Normaly Open betriben, d.h. der Schalter ist normalerweise offen und es fließt kein Strom. So wird das Relais an das Magnentventil angeschlossen und der ATtiny am Relais und steuert dies.
 
-Damit auch der Attiny mit stron versorgt wird bekommt er diesen über ein Stepdown Modul der 12V Stromversorgung für das Magnetrelais.
+Damit auch der Attiny mit strom versorgt wird bekommt er diesen über ein Stepdown Modul der 12V Stromversorgung für das Magnetrelais.
 
 ![Fritzing](doc/Verbindung_Steckplatine.png)
 
 In der Grafik ist der Schaltplan. Attiny wird mit dem Funkmodul verbunden und steuert das Relais. 
 Der Code zum Auslösen des Relais ist die (3) ein 8 bit Wert der über RCSwitch dekodiert wurde.
+ZUsätzlich wurde eine Kontroll-LED mit Widerstand angebracht und zwei Kondensatoren die in Reihe geschaltet, die Spannungsschwankungen durch das Öffnen und Schließen der Relais ausgleichen und Störungen herausfiltern, um den 433Mhz Sender und den Attiny zu schützen. E
+
+![Freilaufdiode](doc/Freilaufdiode.jpg)
+
+Eine Schottky Diode am Magnetventil verhindert, dass umgekehrte Spannung in die Schaltung eindringt. HIer muss die Kathode (Silberstreifen) an Plus und die Anode an Minus angeschlossen werden. Auf dem Bild zu sehen. wurde die Diode einfach auf die vorhandenen Lötpunkte gesetzt.
+
+ Das verwendete Schalt-Relais hat eine Freilaufdiode integriert, bei billigen Relais sollte man darauf achten und hier ebenfalls eine Schottky Diode nachrüsten.
+
+Verwendet werden ein 220Ohn widerstand. Ein 10µF Elko , ein 100 nF Kerko und eine 1N5819 Schottky Diode. Das Prinzip Freilaufdiode wird hier erklärt: [Mit der Freilaufdiode Rauschen reduzieren](https://resources.altium.com/de/p/using-flyback-diodes-relays-prevents-electrical-noise-your-circuits)
 
 Wird das Signal erkannt, öffnet der Prozessor das Ventil für einen bestimmte Zeit, schließt es und wartet erneut auf das nächste Signal.
 

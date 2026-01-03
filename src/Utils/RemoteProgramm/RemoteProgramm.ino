@@ -7,9 +7,9 @@
  Nicht jede Fernbedienung kann jedes Protokoll oder jede Bitlänge der Nachricht.
 
  Die Fernbedienung sollte vorher in den Programmiermodus gebracht werden. Bei den meisten Modellen mit vier Knöpfen geht das so:
- 1. Knopf 1 (oder A) und 2 (B) gleichzeitig drücken bis die LED blinkt und ausgeht
- 2. Knopf 2 (oder B) drei mal hintereinander drücken. Dann fackert die LED
- 3. Unter mySwitch.send(n,24) einen der Werte eintragen (2,5,10,20)
+ 1. Knopf 1 (oder A) und 2 (B) gleichzeitig drücken bis die LED blinkt und ausgeht (das ist der Reset!) -> Knopf 1 nicht loslassen
+ 2. Knopf 1 weiter gedrückt halten  und Knopf 2  drei mal hintereinander drücken. Die LED sollte dann flackkern
+ 3. Unter mySwitch.send(n,24) den neuen Code eintragen und das Sketch auf den Arduino übertragen
  4. Knopf 1-4 (A-D) drücken und halten bis die LED nicht mehr blinkt sondern flackert.
 */
 
@@ -23,7 +23,7 @@ void setup() {
 
 void loop() {
   mySwitch.setProtocol(1);
-  mySwitch.send(454531, 24);
-  delay(100);
+  mySwitch.send(770200, 24);
+  delay(500);
 
 }

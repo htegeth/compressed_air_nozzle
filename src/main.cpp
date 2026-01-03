@@ -48,9 +48,12 @@ ISR(PCINT_VECTOR) {
 
 void ventilOffen(unsigned int dauer) {
   if (dauer >= druckluftDauerMin && dauer <= druckluftDauerMax) {
-    digitalWrite(VENTIL_PIN, HIGH); // ggf. LOW, falls Relais invertiert ist
+    // HIGH aktiviert das Relais nur dann, wenn es sich um ein High-Level-Trigger-Relaismodul handelt;
+    digitalWrite(CONTROL_LED, HIGH); 
+    digitalWrite(VENTIL_PIN, HIGH); 
     delay(dauer);
     digitalWrite(VENTIL_PIN, LOW);
+    digitalWrite(CONTROL_LED, LOW);
   }
 }
 
